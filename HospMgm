@@ -1,0 +1,964 @@
+package com.his.app;
+
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+
+import com.his.gui.AppointmentsPanel;
+import com.his.gui.ButtonPanel;
+import com.his.gui.DoctorInfoPanel;
+import com.his.gui.GeneralNotesPanel;
+import com.his.gui.LabExaminationsPanel;
+import com.his.gui.MedicalHistoryPanel;
+import com.his.gui.PatientDetailsPanel;
+import com.his.gui.PrescribedMedicinePanel;
+import com.his.model.Appointment;
+import com.his.model.Patient;
+import com.his.model.Prescription;
+
+public class EPrescriptionApp extends JFrame {
+	
+	DoctorInfoPanel doctorInfoPanel = new DoctorInfoPanel();
+	MedicalHistoryPanel medicalHistoryPanel = new MedicalHistoryPanel();
+	PatientDetailsPanel patientDetailsPanel = new PatientDetailsPanel(medicalHistoryPanel);
+	GeneralNotesPanel generalNotesPanel = new GeneralNotesPanel();
+	PrescribedMedicinePanel prescribedMedicinePanel = new PrescribedMedicinePanel();
+	LabExaminationsPanel labExaminationsPanel = new LabExaminationsPanel();
+	AppointmentsPanel appointmentsPanel = new AppointmentsPanel(this);
+	private Appointment appointment;
+	public EPrescriptionApp() {
+		setTitle("Doctor Consultation");
+		setSize(1100, 900);
+
+		setLayout(new BorderLayout());
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+		ButtonPanel buttonPanel = new ButtonPanel(this,() -> {
+			doctorInfoPanel.doctorNameField.setText("");
+			patientDetailsPanel.patientNameField.setText("");
+			patientDetailsPanel.MRD.setText("");
+			labExaminationsPanel.labExamsCombo.setSelectedIndex(0);
+			labExaminationsPanel.labExaminatinsArea.setText("");
+			prescribedMedicinePanel.medicinesCombo.setSelectedIndex(0);
+			prescribedMedicinePanel.prescribedMedicinesArea.setText("");
+			generalNotesPanel.generalNotesArea.setText(" ");
+			medicalHistoryPanel.medicalHistoryArea.setText("");
+		});
+
+		JPanel panelMain = new JPanel();
+		panelMain.setLayout(new GridBagLayout());
+		panelMain.setPreferredSize(new Dimension(900, 800));
+		panelMain.setSize(900, 800);
+		GridBagConstraints gc = new GridBagConstraints();
+
+		gc.fill = GridBagConstraints.HORIZONTAL;
+		gc.insets = new Insets(5, 5, 5, 5);
+
+		// gc.weightx=1.0;
+		gc.weighty = 1.0;
+
+		gc.gridx = 0;
+		gc.gridy = 0;
+		panelMain.add(doctorInfoPanel, gc);
+
+		gc.gridy = 1;
+		panelMain.add(patientDetailsPanel, gc);
+
+		gc.gridy = 2;
+		panelMain.add(medicalHistoryPanel, gc);
+
+		gc.gridy = 3;
+		panelMain.add(generalNotesPanel, gc);
+
+		gc.gridy = 4;
+		panelMain.add(prescribedMedicinePanel, gc);
+
+		gc.gridy = 5;
+		panelMain.add(labExaminationsPanel, gc);
+
+		gc.gridy = 6;
+		panelMain.add(buttonPanel, gc);
+
+		add(panelMain, BorderLayout.CENTER);
+
+		JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, appointmentsPanel,
+				new JScrollPane(panelMain));
+		splitPane.setDividerLocation(300);
+		splitPane.setResizeWeight(0.2);
+
+		add(splitPane, BorderLayout.CENTER);
+
+		setVisible(true);
+		
+	}
+
+	public static void main(String[] args) {
+		new EPrescriptionApp();
+	}
+
+	public void precriptionSelected(Appointment appointment) {
+		this.appointment=appointment;
+		patientDetailsPanel.patientNameField.setText(appointment.getPatient().getName());
+		patientDetailsPanel.MRD.setText(new Integer(appointment.getPatient().getId()).toString());
+		doctorInfoPanel.doctorNameField.setText(appointment.getDoctor().getName());
+		
+	}
+	public Prescription getPrescriptionObject(){
+		Prescription prescription = new Prescription(appointment,LocalDate.now().toString(),medicalHistoryPanel.medicalHistoryArea.getText(),labExaminationsPanel.labExaminatinsArea.getText(),prescribedMedicinePanel.prescribedMedicinesArea.getText());
+		return prescription;
+	}
+}
+
+public class AppointmentsPanel extends JPanel {
+	private String appointmentJsonFilePath = "Appointments.json";
+	
+	private String prescriptionJsonFilePath = "Prescription.json";
+	
+	ArrayList<Appointment> appointments;
+	private JList<Appointment> appointmentList;
+	private ObjectMapper mapper = new ObjectMapper();
+
+	public AppointmentsPanel(EPrescriptionApp mainFrame) {
+
+		setBorder(BorderFactory.createTitledBorder("Patient Appointment"));
+		setLayout(new BorderLayout());
+		appointments = new ArrayList<Appointment>();
+		try {
+			appointments = mapper.readValue(new File(appointmentJsonFilePath), new TypeReference<ArrayList<Appointment>>() {});
+			System.out.println(appointments);
+			appointmentList = new JList<Appointment>(new ListModel<Appointment>() {
+				@Override
+				public int getSize() {
+					// TODO Auto-generated method stub
+					return appointments.size();
+				}
+
+				@Override
+				public Appointment getElementAt(int index) {
+					// TODO Auto-generated method stub
+					return appointments.get(index);
+				}
+
+				@Override
+				public void addListDataListener(ListDataListener l) {
+
+				}
+
+				@Override
+				public void removeListDataListener(ListDataListener l) {
+					// TODO Auto-generated method stub
+
+				}
+
+			});
+		} catch (IOException e) {
+			System.out.println(e.getMessage());
+			appointmentList = new JList<Appointment>();
+		}
+		appointmentList.addMouseListener(new MouseAdapter() {
+
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				// TODO Auto-generated method stub
+				Appointment appointment = appointments.get(appointmentList.getSelectedIndex());
+				mainFrame.precriptionSelected(appointment);
+				
+
+			}
+
+		});
+		
+		JScrollPane scrollPane = new JScrollPane(appointmentList);
+
+		add(scrollPane, BorderLayout.CENTER);
+
+	}
+
+}
+
+public class ButtonPanel extends JPanel {
+	String prescriptionJsonFilePath ="Prescription.json";
+	public ClearActionListener clearActionListener;
+	ClearActionListener clearAction;
+
+	public ButtonPanel(EPrescriptionApp ePrescriptionApp, ClearActionListener clearActionListener) {
+
+		this.clearActionListener = clearActionListener;
+
+		setLayout(new FlowLayout());
+
+		JButton saveButton = new JButton("Save");
+		JButton clearButton = new JButton("Clear");
+		JButton submitButton = new JButton("Submit");
+
+		saveButton.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+
+				savePrescriptionToJson();
+
+			}
+
+			private void savePrescriptionToJson() {
+				/*
+				 * try { PatientModelClass record = new PatientModelClass(); record.setName(pa);
+				 * }
+				 * 
+				 */
+			}
+		});
+
+		// clearButton.addActionListener(e-> JOptionPane.showMessageDialog(this,
+		// "clear"));
+		submitButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent event) {
+				
+				if(event.getSource()!=null) {
+					Prescription prescription = ePrescriptionApp.getPrescriptionObject();
+
+						ObjectMapper objectMapper = new ObjectMapper();
+						List<Prescription> prescriptions = new ArrayList<>();
+						File file = new File(prescriptionJsonFilePath);
+						if(file.exists()) {
+							try {
+								prescriptions = objectMapper.readValue(file, new TypeReference<ArrayList<Prescription>>() {});
+							} catch (IOException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+						}
+					//	Prescription updatedPrescription =newPrescription();
+						
+						prescriptions.add(prescription);
+						
+						try {
+							objectMapper.writerWithDefaultPrettyPrinter().writeValue(file, prescriptions);
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						
+						System.out.println("Prescription details added successfully");
+					}
+				}
+				
+		});
+
+		add(saveButton);
+		add(clearButton);
+		add(submitButton);
+		clearButton.addActionListener((e) -> {
+			clearActionListener.clearActionPerformed();
+		});
+	}
+
+}
+
+public interface ClearActionListener {
+	
+	public void clearActionPerformed();
+
+
+}
+
+public class DoctorInfoPanel extends JPanel {
+	public JTextField doctorNameField;
+	public JTextField dateField;
+	ClearActionListener clearAction;
+
+	public DoctorInfoPanel() {
+
+		setLayout(new FlowLayout());
+
+		JLabel doctorLabel = new JLabel("Doctor's Name:");
+		doctorNameField = new JTextField(20);
+		doctorNameField.setText("");
+		doctorNameField.setEditable(false);
+
+		JLabel dateLabel = new JLabel("Date:");
+		dateField = new JTextField(15);
+		dateField.setText(getCurrentDate());
+		dateField.setEditable(false);
+
+		add(doctorLabel);
+		add(doctorNameField);
+		add(dateLabel);
+		add(dateField);
+
+	}
+
+	private String getCurrentDate() {
+		SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
+		Date date = new Date();
+		return formatter.format(date);
+	}
+
+	
+	
+	public void ClearActionListener() {
+		
+		doctorNameField.setText("");
+	}
+	
+}
+
+
+public class GeneralNotesPanel extends JPanel {
+
+	public JTextArea generalNotesArea;
+	ClearActionListener clearAction;
+
+	public GeneralNotesPanel() {
+
+		setBorder(BorderFactory.createTitledBorder("General Notes for Doctor"));
+		setLayout(new BorderLayout());
+
+		generalNotesArea = new JTextArea(5, 30);
+		JScrollPane scroll = new JScrollPane(generalNotesArea);
+		add(scroll, BorderLayout.CENTER);
+
+	}
+
+	public void ClearActionListener() {
+		generalNotesArea.setText("");
+		
+	}
+
+}
+
+
+public class LabExaminationsPanel extends JPanel {
+
+	public JComboBox<String> labExamsCombo;
+	public JTextArea labExaminatinsArea;
+	ClearActionListener clearAction;
+
+	public LabExaminationsPanel() {
+
+		setBorder(BorderFactory.createTitledBorder("Select Lab Examinations"));
+		setLayout(new BorderLayout());
+
+		String[] labExams = { "Blood Test", "X-Ray", "Ultrasound", "CT Scan", "MRI" };
+		labExamsCombo = new JComboBox<>(labExams);
+
+		labExaminatinsArea = new JTextArea(5, 30);
+		labExaminatinsArea.setEditable(false);
+
+		add(labExamsCombo, BorderLayout.NORTH);
+		add(labExaminatinsArea, BorderLayout.CENTER);
+
+		labExamsCombo.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				String selectedMedicine = (String) labExamsCombo.getSelectedItem();
+				labExaminatinsArea.append(selectedMedicine + "\n");
+			}
+		});
+
+	}
+
+	public void ClearActionListener() {
+		
+		labExamsCombo.setSelectedIndex(0);
+		labExaminatinsArea.setText(" ");
+	}
+
+}
+
+public class MedicalHistoryPanel extends JPanel {
+	public JTextArea medicalHistoryArea;
+	ClearActionListener clearAction;
+
+	public MedicalHistoryPanel() {
+
+		setBorder(BorderFactory.createTitledBorder("Patient Medical History"));
+		setLayout(new BorderLayout());
+
+		medicalHistoryArea = new JTextArea(5, 30);
+		JScrollPane scroll = new JScrollPane(medicalHistoryArea);
+		add(scroll, BorderLayout.CENTER);
+
+	}
+	
+//	public void setMedicalHistory(String history) {
+		
+//		medicalHistoryArea.setText(history);
+		
+//	}
+
+	public void ClearActionListener () {
+		
+		medicalHistoryArea.setText("");
+		
+	}
+
+}
+
+public class PatientDetailsPanel extends JPanel {
+
+	public JTextField patientNameField;
+	public JTextField MRD;
+	public JButton historyButton;
+	ClearActionListener clearAction;
+	static ArrayList<Prescription> prescriptions;
+	static ObjectMapper objectMapper = new ObjectMapper();
+
+
+	private MedicalHistoryPanel medicalHistoryPanel;
+
+	public PatientDetailsPanel(MedicalHistoryPanel medicalHistoryPanel) {
+		this.medicalHistoryPanel = medicalHistoryPanel;
+
+		setBorder(BorderFactory.createTitledBorder("Patient Details"));
+		setLayout(new GridBagLayout());
+		GridBagConstraints gc = new GridBagConstraints();
+		gc.fill = GridBagConstraints.HORIZONTAL;
+
+		JLabel patientNameLabel = new JLabel("Patient Name: ");
+		patientNameField = new JTextField(20);
+		patientNameField.setEditable(false);
+		historyButton = new JButton("History");
+
+		gc.gridx = 0;
+		gc.gridy = 0;
+		add(patientNameLabel, gc);
+		gc.gridx = 1;
+		add(patientNameField, gc);
+
+		JLabel patientIdLabel = new JLabel("MRD N.O: ");
+		MRD = new JTextField(20);
+		MRD.setEditable(false);
+
+		gc.gridx = 0;
+		gc.gridy = 1;
+		add(patientIdLabel, gc);
+
+		gc.gridx = 1;
+		add(MRD, gc);
+		
+		gc.gridy = 2;
+		add(historyButton,gc);
+		
+		historyButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				try {
+					prescriptions = objectMapper.readValue(new File("Prescription.json"), new TypeReference<ArrayList<Prescription>>() {});
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					prescriptions = new ArrayList<Prescription>();
+				}
+				for(Prescription prescription:prescriptions) {
+					if(prescription.getAppointment().getPatient().getId()==Integer.parseInt(MRD.getText())) {
+						System.out.println(prescription.getMedicalHistory()+prescription.getDate());
+						medicalHistoryPanel.medicalHistoryArea.setText(prescription.getMedicalHistory()+"\n"+ prescription.getDate()+"\n");
+					}
+					else {
+						
+						medicalHistoryPanel.medicalHistoryArea.setText("No Medical History");
+
+						System.out.println("No Medical History");
+					}
+				}
+				
+			}
+		});
+
+	}
+	
+
+	public void ClearActionListener() {
+		patientNameField.setText("");
+		MRD.setText("");
+
+	}
+	
+	
+
+}
+
+public class PrescribedMedicinePanel extends JPanel {
+
+	public JComboBox<String> medicinesCombo;
+	public JTextArea prescribedMedicinesArea;
+	JTextField dosageField;
+	JTextField timePeriod;
+
+	public PrescribedMedicinePanel() {
+
+		setBorder(BorderFactory.createTitledBorder("Prescribed Medicines"));
+		setLayout(new BorderLayout());
+
+		String[] medicines = { "Aspirin", "Paracetamol", "Mefthal", "Ciprofloxacin" };
+		medicinesCombo = new JComboBox<>(medicines);
+		dosageField = new JTextField(10);
+		timePeriod = new JTextField(10);
+		prescribedMedicinesArea = new JTextArea(5, 30);
+		prescribedMedicinesArea.setEditable(false);
+		JScrollPane scroll = new JScrollPane(prescribedMedicinesArea);
+		JPanel inputPanel = new JPanel(new FlowLayout());
+		JButton dosageButton = new JButton("Add");
+		JButton timePeriodButton = new JButton("Add");
+
+		inputPanel.add(new JLabel("Medicine: "));
+		inputPanel.add(medicinesCombo);
+		inputPanel.add(new JLabel("Dosage: "));
+		inputPanel.add(dosageField);
+		inputPanel.add(dosageButton);
+		inputPanel.add(new JLabel("Medication Period: "));
+		inputPanel.add(timePeriod);
+		inputPanel.add(timePeriodButton);
+
+		dosageButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				String selectedMedicine = (String) medicinesCombo.getSelectedItem();
+				String dosage = dosageField.getText().trim();
+
+				if (dosage.isEmpty()) {
+					JOptionPane.showMessageDialog(PrescribedMedicinePanel.this, "ENTER THE DOSAGE.", "WARNING",
+							JOptionPane.WARNING_MESSAGE);
+				} else {
+					prescribedMedicinesArea.append(selectedMedicine + "-Dosage: " + dosage + "\n");
+					dosageField.setText("");
+				}
+
+			}
+		});
+		
+		timePeriodButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				
+				String selectedMedicine = (String) medicinesCombo.getSelectedItem();
+				String dosage = dosageField.getText().trim();
+				String medicationtime = timePeriod.getText().trim(); 
+
+				if (medicationtime.isEmpty()) {
+					JOptionPane.showMessageDialog(PrescribedMedicinePanel.this, "ENTER MEDICATION TIME", "WARNING",
+							JOptionPane.WARNING_MESSAGE);
+				} else {
+					prescribedMedicinesArea.append(selectedMedicine + "-Dosage: " + dosage + "Medication time: "+medicationtime+"\n");
+					timePeriod.setText("");
+				}
+				
+				
+			}
+		});
+
+		add(inputPanel, BorderLayout.NORTH);
+		add(scroll, BorderLayout.CENTER);
+
+	}
+
+	public String getPrescribedMedicine() {
+		return prescribedMedicinesArea.getText();
+	}
+
+	public void ClearActionListener() {
+		prescribedMedicinesArea.setText("");
+		medicinesCombo.setSelectedIndex(0);
+		dosageField.setText("");
+
+	}
+
+}
+
+public class Appointment {
+	@JsonProperty("patient")
+	private Patient patient;
+	
+	@JsonProperty("doctor")
+	private Doctor doctor;
+	
+	@JsonProperty("appointment_Date")
+	private String appointments;
+	
+	@JsonProperty("department")
+	private String department;
+	
+	@JsonProperty("consultation_fee")
+	private String consultationfee;
+	
+	@JsonProperty("appointment_time")
+	private String appointmentTime;
+	
+	public Patient getPatient() {
+		return patient;
+	}
+	
+
+	public Appointment() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+
+	public Appointment(Patient patient, Doctor doctor, String appointments, String department, String consultationfee,
+			String appointmentTime) {
+		super();
+		this.patient = patient;
+		this.doctor = doctor;
+		this.appointments = appointments;
+		this.department = department;
+		this.consultationfee = consultationfee;
+		this.appointmentTime = appointmentTime;
+	}
+
+	public Doctor getDoctor() {
+		return doctor;
+	}
+
+	public String getAppointments() {
+		return appointments;
+	}
+
+	public String getDepartment() {
+		return department;
+	}
+
+	public String getConsultationfee() {
+		return consultationfee;
+	}
+
+	public String getAppointmentTime() {
+		return appointmentTime;
+	}
+
+	public void setPatient(Patient patient) {
+		this.patient = patient;
+	}
+
+	public void setDoctor(Doctor doctor) {
+		this.doctor = doctor;
+	}
+
+	public void setAppointments(String appointments) {
+		this.appointments = appointments;
+	}
+
+	public void setDepartment(String department) {
+		this.department = department;
+	}
+
+	public void setConsultationfee(String consultationfee) {
+		this.consultationfee = consultationfee;
+	}
+
+	public void setAppointmentTime(String appointmentTime) {
+		this.appointmentTime = appointmentTime;
+	}
+
+	@Override
+	public String toString() {
+		return "\npatient: "+" "+patient.getName()+patient.getTokenNumber()+"\n docotor: "+doctor.getName()+doctor.getId();
+	}
+
+	
+}
+
+public class Doctor {
+
+	private int id;
+	private String name;
+	private String contact;
+	private int age;
+	private String specialization;
+	private String startTime;
+	private String endTime;
+
+
+	public int getId() {
+		return id;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public String getContact() {
+		return contact;
+	}
+
+	public int getAge() {
+		return age;
+	}
+
+	public String getSpecialization() {
+		return specialization;
+	}
+
+	public String getStartTime() {
+		return startTime;
+	}
+
+	public String getEndTime() {
+		return endTime;
+	}
+
+
+	public void setId(int id) {
+		this.id = id;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public void setContact(String contact) {
+		this.contact = contact;
+	}
+
+	public void setAge(int age) {
+		this.age = age;
+	}
+
+	public void setSpecialization(String specialization) {
+		this.specialization = specialization;
+	}
+
+	public void setStartTime(String startTime) {
+		this.startTime = startTime;
+	}
+
+	public void setEndTime(String endTime) {
+		this.endTime = endTime;
+	}
+
+}
+
+
+import java.util.List;
+
+public class EPrescriptionModel {
+
+	private Doctor doctor;
+
+	private Patient patient;
+
+	private String medicalHistory;
+
+	private List<Medicine> prescribedMedicine;
+
+	private List<String> labExaminations;
+
+	public Doctor getDoctor() {
+		return doctor;
+	}
+
+	public Patient getPatient() {
+		return patient;
+	}
+
+	public String getMedicalHistory() {
+		return medicalHistory;
+	}
+
+	public List<Medicine> getPrescribedMedicine() {
+		return prescribedMedicine;
+	}
+
+	public List<String> getLabExaminations() {
+		return labExaminations;
+	}
+
+	public void setDoctor(Doctor doctor) {
+		this.doctor = doctor;
+	}
+
+	public void setPatient(Patient patient) {
+		this.patient = patient;
+	}
+
+	public void setMedicalHistory(String medicalHistory) {
+		this.medicalHistory = medicalHistory;
+	}
+
+	public void setPrescribedMedicine(List<Medicine> prescribedMedicine) {
+		this.prescribedMedicine = prescribedMedicine;
+	}
+
+	public void setLabExaminations(List<String> labExaminations) {
+		this.labExaminations = labExaminations;
+	}
+
+	public EPrescriptionModel(Doctor doctor, Patient patient, String medicalHistory, List<Medicine> prescribedMedicine,
+			List<String> labExaminations) {
+		super();
+		this.doctor = doctor;
+		this.patient = patient;
+		this.medicalHistory = medicalHistory;
+		this.prescribedMedicine = prescribedMedicine;
+		this.labExaminations = labExaminations;
+	}
+
+}
+
+public class Medicine {
+
+	private String name;
+	private String dosage;
+
+
+	public String getName() {
+		return name;
+	}
+
+	public String getDosage() {
+		return dosage;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public void setDosage(String dosage) {
+		this.dosage = dosage;
+	}
+
+	@Override
+	public String toString() {
+		return "Medicine [name=" + name + ", dosage=" + dosage + "]";
+	}
+
+
+}
+
+public class Patient {
+	
+	private int id;
+	private String name;
+	private int age;
+	private String address;
+	private String emailAddress;
+	private String bloodGroup;
+	private String phoneNumber;
+	private int tokenNumber;
+	
+	public int getId() {
+		return id;
+	}
+	public void setId(int id) {
+		this.id = id;
+	}
+	public void setAge(int age) {
+		this.age = age;
+	}
+	
+	public String getName() {
+		return name;
+	}
+	public int getAge() {
+		return age;
+	}
+	public String getAddress() {
+		return address;
+	}
+	public String getEmailAddress() {
+		return emailAddress;
+	}
+	public String getBloodGroup() {
+		return bloodGroup;
+	}
+	public String getPhoneNumber() {
+		return phoneNumber;
+	}
+	public int getTokenNumber() {
+		return tokenNumber;
+	}
+	public void setName(String name) {
+		this.name = name;
+	}
+	public void setDateOfBirth(int age) {
+		this.age = age;
+	}
+	public void setAddress(String address) {
+		this.address = address;
+	}
+	public void setEmailAddress(String emailaddress) {
+		this.emailAddress = emailaddress;
+	}
+	public void setBloodGroup(String bloodGroup) {
+		this.bloodGroup = bloodGroup;
+	}
+	public void setPhoneNumber(String phoneNumber) {
+		this.phoneNumber = phoneNumber;
+	}
+	public void setTokenNumber(int tokenNumber) {
+		this.tokenNumber = tokenNumber;
+	}
+	@Override
+	public String toString() {
+		return id +" : "+name + " : " + tokenNumber;
+	}
+	
+}
+
+public class Prescription {
+	
+	private Appointment appointment;
+	private String date;
+	private String medicalHistory;
+	private String labExaminations;
+	private String prescribedMedicine;
+	public Appointment getAppointment() {
+		return appointment;
+	}
+	public String getDate() {
+		return date;
+	}
+	public String getMedicalHistory() {
+		return medicalHistory;
+	}
+	public String getLabExaminations() {
+		return labExaminations;
+	}
+	public String getPrescribedMedicine() {
+		return prescribedMedicine;
+	}
+	public void setAppointment(Appointment appointment) {
+		this.appointment = appointment;
+	}
+	public void setDate(String date) {
+		this.date = date;
+	}
+	public void setMedicalHistory(String medicalHistory) {
+		this.medicalHistory = medicalHistory;
+	}
+	public void setLabExaminations(String labExaminations) {
+		this.labExaminations = labExaminations;
+	}
+	public void setPrescribedMedicine(String prescribedMedicine) {
+		this.prescribedMedicine = prescribedMedicine;
+	}
+	public Prescription(Appointment appointment, String date, String medicalHistory, String labExaminations,
+			String prescribedMedicine) {
+		super();
+		this.appointment = appointment;
+		this.date = date;
+		this.medicalHistory = medicalHistory;
+		this.labExaminations = labExaminations;
+		this.prescribedMedicine = prescribedMedicine;
+	}
+	public Prescription() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+	
+
+	
+	
+
+
+}
